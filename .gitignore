@@ -1,0 +1,54 @@
+# Binarios
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output de coverage
+*.out
+
+# Carpeta de dependencias de Go
+vendor/
+
+# Archivos de configuración con credenciales
+configs/config.yaml
+*.env.go
+
+# Variables de entorno y secrets
+.env
+.env.local
+.env.*.local
+secrets/
+*.key
+*.pem
+*.crt
+
+# Base de datos
+data/*.db
+data/*.db-journal
+*.db
+*.db-journal
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporales
+tmp/
+temp/
