@@ -1,1 +1,20 @@
 carpeta para el backend y fuente de datos en codigo Go
+como funcionara asi
+chat-backend/
+├── cmd/
+│   └── app/
+│       └── main.go                  ← entrada del servidor
+├── internal/
+│   ├── config/                      ← viper + .env
+│   ├── database/                    ← GORM connection + AutoMigrate
+│   ├── handler/                     ← Gin handlers (REST + WebSocket)
+│   ├── middleware/                  ← JWT Auth, CORS, Logger
+│   ├── model/                       ← structs GORM (User, Room, Message, RoomMember)
+│   ├── repository/                  ← acceso a DB (interfaces)
+│   ├── service/                     ← lógica de negocio (AuthService, ChatService, RoomService)
+│   └── websocket/                   ← Hub (gestor de conexiones y salas)
+├── pkg/                             ← utilidades compartidas (opcional)
+├── docker-compose.yml
+├── Dockerfile
+├── go.mod
+└── README.md
