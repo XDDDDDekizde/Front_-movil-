@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 import 'register_page.dart';
 import 'home_page.dart';
 
@@ -10,42 +9,51 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final userController = TextEditingController();
+  final emailController = TextEditingController();
   final passController = TextEditingController();
+  bool isLoading = false;
 
   Future<void> login() async {
-    final prefs = await SharedPreferences.getInstance();
+    String email = emailController.text.trim();
+    String password = passController.text.trim();
 
-    String? usersJson = prefs.getString('users');
-
-    Map<String, String> users = usersJson != null
-        ? Map<String, String>.from(jsonDecode(usersJson))
-        : {};
-
-    String username = userController.text;
-    String password = passController.text;
-
-    if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Completa todos los campos")),
-      );
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar("Completa todos los campos");
       return;
     }
 
+    setState(() {
+      isLoading = true;
+    });
+
+    final result = await AuthService.login(email, password);
+
     if (!mounted) return;
 
-    if (users.containsKey(username) && users[username] == password) {
+    setState(() {
+      isLoading = false;
+    });
+
+    if (result['success']) {
+      final userData = result['data'];
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => HomePage(username: username),
+          builder: (_) => HomePage(username: userData['username']),
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Usuario o contraseña incorrectos")),
-      );
+      _showSnackBar(result['error'] ?? 'Error en el login');
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -57,28 +65,45 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text("Bienvenido", style: TextStyle(fontSize: 28)),
+            Text("Bienvenido", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             SizedBox(height: 30),
             TextField(
-              controller: userController,
-              decoration: InputDecoration(labelText: "Usuario"),
+              controller: emailController,
+              enabled: !isLoading,
+              decoration: InputDecoration(
+                labelText: "Email",
+                border: OutlineInputBorder(),
+              ),
             ),
             SizedBox(height: 20),
             TextField(
               controller: passController,
+              enabled: !isLoading,
               obscureText: true,
-              decoration: InputDecoration(labelText: "Contraseña"),
+              decoration: InputDecoration(
+                labelText: "Contraseña",
+                border: OutlineInputBorder(),
+              ),
             ),
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed: login,
-              child: Text("Ingresar"),
+              onPressed: isLoading ? null : login,
+              child: isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text("Ingresar"),
             ),
+            SizedBox(height: 10),
             TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => RegisterPage()),
-              ),
+              onPressed: isLoading
+                  ? null
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => RegisterPage()),
+                      ),
               child: Text("Crear cuenta"),
             ),
           ],
