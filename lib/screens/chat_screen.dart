@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../models/user.dart';
-import '../models/room.dart';
-import '../models/message.dart';
-import '../services/message_service.dart';
-import '../widgets/message_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
+  final dynamic room;
   final User user;
-  final Room room;
 
   const ChatScreen({
     super.key,
-    required this.user,
     required this.room,
+    required this.user,
   });
 
   @override
@@ -20,9 +17,10 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final messageService = MessageService();
-  final controller = TextEditingController();
-  List<Message> messages = [];
+  final AuthService authService = AuthService();
+  final TextEditingController messageController = TextEditingController();
+
+  List messages = [];
 
   @override
   void initState() {
@@ -31,51 +29,101 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void loadMessages() async {
-    messages =
-    await messageService.getMessages(widget.room.id);
-    setState(() {});
+    try {
+      var data = await authService.getMessages(widget.room['id']);
+
+      setState(() {
+        messages = data;
+      });
+    } catch (e) {
+      print("Error cargando mensajes: $e");
+    }
   }
 
   void sendMessage() async {
-    if (controller.text.isEmpty) return;
+    if (messageController.text.isEmpty) return;
 
-    await messageService.sendMessage(
-      widget.room.id,
+    await authService.sendMessage(
+      widget.room['id'],
       widget.user.id,
-      controller.text,
+      messageController.text,
     );
 
-    controller.clear();
+    messageController.clear();
     loadMessages();
+  }
+
+  Widget buildMessage(msg) {
+    // 🔥 PROTECCIÓN TOTAL CONTRA NULL
+    String content = msg['content'] ?? '';
+    String userId = msg['user_id'] ?? '';
+    String username = msg['user'] ?? 'Usuario';
+
+    bool isMe = userId == widget.user.id;
+
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isMe ? Colors.blue : Colors.grey[800],
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Text(
+              username,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              content,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.room.name)),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text(widget.room['name'] ?? 'Chat'),
+      ),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
               itemCount: messages.length,
-              itemBuilder: (_, i) {
-                final msg = messages[i];
-
-                return MessageBubble(
-                  message: msg,
-                  isMe: msg.userId == widget.user.id,
-                );
+              itemBuilder: (context, index) {
+                return buildMessage(messages[index]);
               },
             ),
           ),
           Row(
             children: [
               Expanded(
-                child: TextField(controller: controller),
+                child: TextField(
+                  controller: messageController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: "Mensaje...",
+                    hintStyle: TextStyle(color: Colors.white54),
+                  ),
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.send),
                 onPressed: sendMessage,
+                icon: const Icon(Icons.send, color: Colors.white),
               )
             ],
           )

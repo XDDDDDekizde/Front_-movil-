@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../models/user.dart';
-import '../models/room.dart';
-import '../services/room_service.dart';
 import 'chat_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
@@ -14,8 +13,10 @@ class RoomsScreen extends StatefulWidget {
 }
 
 class _RoomsScreenState extends State<RoomsScreen> {
-  final roomService = RoomService();
-  List<Room> rooms = [];
+  final AuthService authService = AuthService();
+  final TextEditingController roomController = TextEditingController();
+
+  List rooms = [];
 
   @override
   void initState() {
@@ -24,71 +25,121 @@ class _RoomsScreenState extends State<RoomsScreen> {
   }
 
   void loadRooms() async {
-    rooms = await roomService.getRooms();
-    setState(() {});
+    var data = await authService.getRooms();
+    setState(() {
+      rooms = data;
+    });
   }
 
   void createRoom() async {
-    final controller = TextEditingController();
+    if (roomController.text.isEmpty) return;
 
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Nueva sala"),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Room? room = await roomService.createRoom(
-                controller.text,
-                "public",
-                widget.user.id,
-              );
+    await authService.createRoom(
+      roomController.text,
+      widget.user.id,
+    );
 
-              if (room != null) {
-                rooms.add(room);
-                setState(() {});
-              }
+    roomController.clear();
+    loadRooms();
+  }
 
-              Navigator.pop(context);
-            },
-            child: const Text("Crear"),
-          )
-        ],
+  void openRoom(room) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          room: room,
+          user: widget.user,
+        ),
       ),
+    );
+  }
+
+  void showOptions(room) {
+    bool isOwner = room['created_by'] == widget.user.id;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return Container(
+          color: Colors.black,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isOwner)
+                ListTile(
+                  title: const Text("Eliminar sala",
+                      style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    await authService.deleteRoom(
+                      room['id'],
+                      widget.user.id,
+                    );
+
+                    loadRooms();
+                  },
+                ),
+              ListTile(
+                title: const Text("Cerrar"),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:
-      AppBar(title: Text("Salas - ${widget.user.username}")),
-      body: ListView.builder(
-        itemCount: rooms.length,
-        itemBuilder: (_, i) {
-          final room = rooms[i];
-
-          return ListTile(
-            title: Text(room.name),
-            subtitle: Text(room.type),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(
-                    user: widget.user,
-                    room: room,
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text("Salas - ${widget.user.username}"),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: roomController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      hintText: "Nombre de sala",
+                      hintStyle: TextStyle(color: Colors.white54),
+                    ),
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: createRoom,
-        child: const Icon(Icons.add),
+                IconButton(
+                  onPressed: createRoom,
+                  icon: const Icon(Icons.add, color: Colors.white),
+                )
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: rooms.length,
+              itemBuilder: (context, index) {
+                var room = rooms[index];
+
+                return ListTile(
+                  title: Text(
+                    room['name'],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  onTap: () => openRoom(room),
+                  onLongPress: () => showOptions(room), // 🔥 aquí
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
